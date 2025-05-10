@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅行商问题(TSP)演示</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+        
+        .control-panel {
+            width: 300px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .demo-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            background-color: #ecf0f1;
+        }
+        
+        h1, h2, h3 {
+            color: #3498db;
+        }
+        
+        .control-panel h2 {
+            color: #ecf0f1;
+            margin-top: 0;
+            border-bottom: 1px solid #34495e;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input, select, button {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            border: 1px solid #bdc3c7;
+            background-color: white;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .info-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .algorithm-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f4fc;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+        }
+        
+        .slider-container input[type="range"] {
+            flex: 1;
+            margin-right: 10px;
+        }
+        
+        .slider-value {
+            width: 40px;
+            text-align: center;
+        }
+        
+        .status {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="control-panel">
+        <h2>旅行商问题演示</h2>
+        
+        <div class="form-group">
+            <label for="city-count">城市数量</label>
+            <div class="slider-container">
+                <input type="range" id="city-count" min="5" max="50" value="15">
+                <span class="slider-value" id="city-count-value">15</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="algorithm">算法选择</label>
+            <select id="algorithm">
+                <option value="nearest">最近邻算法</option>
+                <option value="genetic">遗传算法</option>
+                <option value="simulated">模拟退火</option>
+                <option value="bruteforce">暴力搜索(≤10城)</option>
+            </select>
+        </div>
+        
+        <div class="form-group" id="genetic-params" style="display:none;">
+            <label for="population-size">种群大小</label>
+            <input type="number" id="population-size" min="10" max="500" value="100">
+            
+            <label for="mutation-rate">变异率</label>
+            <div class="slider-container">
+                <input type="range" id="mutation-rate" min="0" max="100" value="10">
+                <span class="slider-value" id="mutation-rate-value">10%</span>
+            </div>
+            
+            <label for="generations">迭代次数</label>
+            <input type="number" id="generations" min="10" max="1000" value="100">
+        </div>
+        
+        <div class="form-group" id="annealing-params" style="display:none;">
+            <label for="initial-temp">初始温度</label>
+            <input type="number" id="initial-temp" min="1" max="1000" value="100">
+            
+            <label for="cooling-rate">冷却速率</label>
+            <div class="slider-container">
+                <input type="range" id="cooling-rate" min="1" max="99" value="95">
+                <span class="slider-value" id="cooling-rate-value">95%</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="animation-speed">动画速度</label>
+            <div class="slider-container">
+                <input type="range" id="animation-speed" min="1" max="10" value="5">
+                <span class="slider-value" id="animation-speed-value">5</span>
+            </div>
+        </div>
+        
+        <button id="generate-btn">生成随机城市</button>
+        <button id="solve-btn">开始求解</button>
+        <button id="reset-btn">重置</button>
+        
+        <div class="algorithm-info">
+            <h3>算法说明</h3>
+            <p id="algorithm-description">最近邻算法是一种贪心算法，从起点开始，每次选择最近的未访问城市作为下一个目的地。</p>
+        </div>
+    </div>
+    
+    <div class="demo-area">
+        <div class="canvas-container">
+            <canvas id="tsp-canvas"></canvas>
+        </div>
+        
+        <div class="info-panel">
+            <h3>求解信息</h3>
+            <p>状态: <span class="status" id="status">等待开始</span></p>
+            <p>城市数量: <span id="info-city-count">15</span></p>
+            <p>当前路径长度: <span id="path-length">-</span></p>
+            <p>最短路径长度: <span id="best-path-length">-</span></p>
+            <p>迭代次数: <span id="iteration-count">0</span></p>
+            <p>计算时间: <span id="compute-time">0</span>ms</p>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const canvas = document.getElementById('tsp-canvas');
+        const ctx = canvas.getContext('2d');
+        const cityCountInput = document.getElementById('city-count');
+        const cityCountValue = document.getElementById('city-count-value');
+        const algorithmSelect = document.getElementById('algorithm');
+        const geneticParams = document.getElementById('genetic-params');
+        const annealingParams = document.getElementById('annealing-params');
+        const generateBtn = document.getElementById('generate-btn');
+        const solveBtn = document.getElementById('solve-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const statusElement = document.getElementById('status');
+        const pathLengthElement = document.getElementById('path-length');
+        const bestPathLengthElement = document.getElementById('best-path-length');
+        const iterationCountElement = document.getElementById('iteration-count');
+        const computeTimeElement = document.getElementById('compute-time');
+        const infoCityCount = document.getElementById('info-city-count');
+        const algorithmDescription = document.getElementById('algorithm-description');
+        
+        // 调整canvas大小
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        // 更新滑块值显示
+        cityCountInput.addEventListener('input', () => {
+            cityCountValue.textContent = cityCountInput.value;
+            infoCityCount.textContent = cityCountInput.value;
+        });
+        
+        document.getElementById('mutation-rate').addEventListener('input', function() {
+            document.getElementById('mutation-rate-value').textContent = this.value + '%';
+        });
+        
+        document.getElementById('cooling-rate').addEventListener('input', function() {
+            document.getElementById('cooling-rate-value').textContent = this.value + '%';
+        });
+        
+        document.getElementById('animation-speed').addEventListener('input', function() {
+            document.getElementById('animation-speed-value').textContent = this.value;
+        });
+        
+        // 根据算法选择显示不同参数
+        algorithmSelect.addEventListener('change', function() {
+            geneticParams.style.display = 'none';
+            annealingParams.style.display = 'none';
+            
+            switch(this.value) {
+                case 'genetic':
+                    geneticParams.style.display = 'block';
+                    algorithmDescription.textContent = "遗传算法模拟自然选择过程，通过选择、交叉和变异操作逐步优化种群中的解。";
+                    break;
+                case 'simulated':
+                    annealingParams.style.display = 'block';
+                    algorithmDescription.textContent = "模拟退火算法受金属退火过程启发，允许偶尔接受较差的解以避免陷入局部最优。";
+                    break;
+                case 'bruteforce':
+                    algorithmDescription.textContent = "暴力搜索尝试所有可能的路径组合以找到最优解，仅适用于小规模问题(≤10城)。";
+                    break;
+                default:
+                    algorithmDescription.textContent = "最近邻算法是一种贪心算法，从起点开始，每次选择最近的未访问城市作为下一个目的地。";
+            }
+        });
+        
+        // TSP模拟数据
+        let cities = [];
+        let currentPath = [];
+        let bestPath = [];
+        let bestDistance = Infinity;
+        let isSolving = false;
+        let animationId = null;
+        
+        // 生成随机城市
+        function generateRandomCities() {
+            const count = parseInt(cityCountInput.value);
+            cities = [];
+            
+            const padding = 30;
+            const width = canvas.width - padding * 2;
+            const height = canvas.height - padding * 2;
+            
+            for (let i = 0; i < count; i++) {
+                cities.push({
+                    x: padding + Math.random() * width,
+                    y: padding + Math.random() * height
+                });
+            }
+            
+            currentPath = [];
+            bestPath = [];
+            bestDistance = Infinity;
+            updateInfo();
+            drawCities();
+        }
+        
+        // 绘制城市和路径
+        function drawCities() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制当前路径
+            if (currentPath.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(cities[currentPath[0]].x, cities[currentPath[0]].y);
+                
+                for (let i = 1; i < currentPath.length; i++) {
+                    ctx.lineTo(cities[currentPath[i]].x, cities[currentPath[i]].y);
+                }
+                
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            
+            // 绘制最佳路径
+            if (bestPath.length > 1) {
+                ctx.beginPath();
+                ctx.moveTo(cities[bestPath[0]].x, cities[bestPath[0]].y);
+                
+                for (let i = 1; i < bestPath.length; i++) {
+                    ctx.lineTo(cities[bestPath[i]].x, cities[bestPath[i]].y);
+                }
+                
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            
+            // 绘制城市点
+            ctx.fillStyle = '#2c3e50';
+            for (let i = 0; i < cities.length; i++) {
+                ctx.beginPath();
+                ctx.arc(cities[i].x, cities[i].y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 显示城市编号
+                ctx.fillStyle = '#2c3e50';
+                ctx.font = '12px Arial';
+                ctx.fillText(i, cities[i].x + 8, cities[i].y + 3);
+                ctx.fillStyle = '#2c3e50';
+            }
+        }
+        
+        // 计算路径距离
+        function calculateDistance(path) {
+            let distance = 0;
+            for (let i = 0; i < path.length - 1; i++) {
+                const cityA = cities[path[i]];
+                const cityB = cities[path[i + 1]];
+                distance += Math.sqrt(Math.pow(cityB.x - cityA.x, 2) + Math.pow(cityB.y - cityA.y, 2));
+            }
+            // 回到起点
+            if (path.length > 1) {
+                const firstCity = cities[path[0]];
+                const lastCity = cities[path[path.length - 1]];
+                distance += Math.sqrt(Math.pow(lastCity.x - firstCity.x, 2) + Math.pow(lastCity.y - firstCity.y, 2));
+            }
+            return distance;
+        }
+        
+        // 更新信息面板
+        function updateInfo() {
+            pathLengthElement.textContent = currentPath.length > 1 ? calculateDistance(currentPath).toFixed(2) : "-";
+            bestPathLengthElement.textContent = bestPath.length > 1 ? bestDistance.toFixed(2) : "-";
+        }
+        
+        // 最近邻算法
+        function nearestNeighbor() {
+            const startTime = performance.now();
+            const unvisited = [...Array(cities.length).keys()];
+            currentPath = [];
+            
+            // 从随机城市开始
+            let currentCity = Math.floor(Math.random() * cities.length);
+            currentPath.push(currentCity);
+            unvisited.splice(unvisited.indexOf(currentCity), 1);
+            
+            let iterations = 0;
+            const maxIterations = cities.length - 1;
+            const speed = parseInt(document.getElementById('animation-speed').value);
+            
+            function step() {
+                if (unvisited.length === 0 || !isSolving) {
+                    const distance = calculateDistance(currentPath);
+                    if (distance < bestDistance) {
+                        bestPath = [...currentPath];
+                        bestDistance = distance;
+                    }
+                    
+                    const endTime = performance.now();
+                    computeTimeElement.textContent = (endTime - startTime).toFixed(2);
+                    iterationCountElement.textContent = iterations;
+                    updateInfo();
+                    drawCities();
+                    
+                    if (unvisited.length === 0) {
+                        statusElement.textContent = "求解完成";
+                        isSolving = false;
+                    } else {
+                        statusElement.textContent = "已停止";
+                    }
+                    
+                    return;
+                }
+                
+                // 找到最近的未访问城市
+                let nearestDist = Infinity;
+                let nearestIndex = -1;
+                
+                for (let i = 0; i < unvisited.length; i++) {
+                    const cityA = cities[currentCity];
+                    const cityB = cities[unvisited[i]];
+                    const dist = Math.sqrt(Math.pow(cityB.x - cityA.x, 2) + Math.pow(cityB.y - cityA.y, 2));
+                    
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestIndex = i;
+                    }
+                }
+                
+                currentCity = unvisited[nearestIndex];
+                currentPath.push(currentCity);
+                unvisited.splice(nearestIndex, 1);
+                
+                iterations++;
+                iterationCountElement.textContent = iterations;
+                updateInfo();
+                drawCities();
+                
+                animationId = setTimeout(step, 1000 / speed);
+            }
+            
+            statusElement.textContent = "正在求解...";
+            step();
+        }
+        
+        // 遗传算法
+        function geneticAlgorithm() {
+            const startTime = performance.now();
+            const populationSize = parseInt(document.getElementById('population-size').value);
+            const mutationRate = parseInt(document.getElementById('mutation-rate').value) / 100;
+            const generations = parseInt(document.getElementById('generations').value);
+            const speed = parseInt(document.getElementById('animation-speed').value);
+            
+            // 创建初始种群
+            let population = [];
+            for (let i = 0; i < populationSize; i++) {
+                let individual = [...Array(cities.length).keys()];
+                // 随机打乱顺序
+                for (let j = individual.length - 1; j > 0; j--) {
+                    const k = Math.floor(Math.random() * (j + 1));
+                    [individual[j], individual[k]] = [individual[k], individual[j]];
+                }
+                population.push(individual);
+            }
+            
+            let currentGeneration = 0;
+            
+            function evaluateFitness(individual) {
+                const distance = calculateDistance(individual);
+                return 1 / (distance + 1); // 距离越小，适应度越高
+            }
+            
+            function selectParent(population, fitness) {
+                let sum = fitness.reduce((a, b) => a + b, 0);
+                let threshold = Math.random() * sum;
+                
+                let runningSum = 0;
+                for (let i = 0; i < population.length; i++) {
+                    runningSum += fitness[i];
+                    if (runningSum >= threshold) {
+                        return population[i];
+                    }
+                }
+                
+                return population[0];
+            }
+            
+            function crossover(parent1, parent2) {
+                // 顺序交叉(OX)
+                const start = Math.floor(Math.random() * parent1.length);
+                const end = Math.floor(Math.random() * (parent1.length - start)) + start;
+                
+                const child = new Array(parent1.length);
+                const segment = parent1.slice(start, end + 1);
+                
+                // 复制片段
+                for (let i = start; i <= end; i++) {
+                    child[i] = parent1[i];
+                }
+                
+                // 从parent2填充剩余城市，保持顺序
+                let currentPos = 0;
+                for (let i = 0; i < parent2.length; i++) {
+                    if (currentPos === start) {
+                        currentPos = end + 1;
+                    }
+                    
+                    if (!segment.includes(parent2[i])) {
+                        if (currentPos >= child.length) {
+                            break;
+                        }
+                        child[currentPos] = parent2[i];
+                        currentPos++;
+                    }
+                }
+                
+                return child;
+            }
+            
+            function mutate(individual) {
+                // 交换两个随机城市
+                if (Math.random() < mutationRate) {
+                    const i = Math.floor(Math.random() * individual.length);
+                    let j = Math.floor(Math.random() * individual.length);
+                    while (j === i) {
+                        j = Math.floor(Math.random() * individual.length);
+                    }
+                    [individual[i], individual[j]] = [individual[j], individual[i]];
+                }
+                return individual;
+            }
+            
+            function step() {
+                if (currentGeneration >= generations || !isSolving) {
+                    const endTime = performance.now();
+                    computeTimeElement.textContent = (endTime - startTime).toFixed(2);
+                    iterationCountElement.textContent = currentGeneration;
+                    
+                    if (!isSolving) {
+                        statusElement.textContent = "已停止";
+                    } else {
+                        statusElement.textContent = "求解完成";
+                        isSolving = false;
+                    }
+                    
+                    return;
+                }
+                
+                // 评估适应度
+                const fitness = population.map(evaluateFitness);
+                
+                // 找到最佳个体
+                let bestIndex = 0;
+                let maxFitness = fitness[0];
+                
+                for (let i = 1; i < fitness.length; i++) {
+                    if (fitness[i] > maxFitness) {
+                        maxFitness = fitness[i];
+                        bestIndex = i;
+                    }
+                }
+                
+                currentPath = [...population[bestIndex]];
+                const currentDistance = calculateDistance(currentPath);
+                
+                if (currentDistance < bestDistance) {
+                    bestPath = [...currentPath];
+                    bestDistance = currentDistance;
+                }
+                
+                // 创建新一代
+                let newPopulation = [];
+                
+                // 保留最佳个体(精英策略)
+                newPopulation.push([...population[bestIndex]]);
+                
+                while (newPopulation.length < populationSize) {
+                    const parent1 = selectParent(population, fitness);
+                    const parent2 = selectParent(population, fitness);
+                    let child = crossover(parent1, parent2);
+                    child = mutate(child);
+                    newPopulation.push(child);
+                }
+                
+                population = newPopulation;
+                currentGeneration++;
+                
+                iterationCountElement.textContent = currentGeneration;
+                updateInfo();
+                drawCities();
+                
+                animationId = setTimeout(step, 1000 / speed);
+            }
+            
+            statusElement.textContent = "正在求解...";
+            step();
+        }
+        
+        // 模拟退火算法
+        function simulatedAnnealing() {
+            const startTime = performance.now();
+            const initialTemp = parseInt(document.getElementById('initial-temp').value);
+            const coolingRate = parseInt(document.getElementById('cooling-rate').value) / 100;
+            const speed = parseInt(document.getElementById('animation-speed').value);
+            
+            let temp = initialTemp;
+            
+            // 初始解 - 随机路径
+            currentPath = [...Array(cities.length).keys()];
+            for (let i = currentPath.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [currentPath[i], currentPath[j]] = [currentPath[j], currentPath[i]];
+            }
+            
+            let currentDistance = calculateDistance(currentPath);
+            bestPath = [...currentPath];
+            bestDistance = currentDistance;
+            
+            let iterations = 0;
+            
+            function step() {
+                if (temp <= 1 || !isSolving) {
+                    const endTime = performance.now();
+                    computeTimeElement.textContent = (endTime - startTime).toFixed(2);
+                    iterationCountElement.textContent = iterations;
+                    
+                    if (!isSolving) {
+                        statusElement.textContent = "已停止";
+                    } else {
+                        statusElement.textContent = "求解完成";
+                        isSolving = false;
+                    }
+                    
+                    return;
+                }
+                
+                // 生成邻域解 - 交换两个随机城市
+                const newPath = [...currentPath];
+                const i = Math.floor(Math.random() * newPath.length);
+                let j = Math.floor(Math.random() * newPath.length);
+                while (j === i) {
+                    j = Math.floor(Math.random() * newPath.length);
+                }
+                [newPath[i], newPath[j]] = [newPath[j], newPath[i]];
+                
+                const newDistance = calculateDistance(newPath);
+                const delta = newDistance - currentDistance;
+                
+                // 决定是否接受新解
+                if (delta < 0 || Math.exp(-delta / temp) > Math.random()) {
+                    currentPath = [...newPath];
+                    currentDistance = newDistance;
+                    
+                    if (currentDistance < bestDistance) {
+                        bestPath = [...currentPath];
+                        bestDistance = currentDistance;
+                    }
+                }
+                
+                // 降温
+                temp *= coolingRate;
+                iterations++;
+                
+                iterationCountElement.textContent = iterations;
+                updateInfo();
+                drawCities();
+                
+                animationId = setTimeout(step, 1000 / speed);
+            }
+            
+            statusElement.textContent = "正在求解...";
+            step();
+        }
+        
+        // 暴力搜索(仅适用于小规模问题)
+        function bruteForce() {
+            const startTime = performance.now();
+            const cityCount = parseInt(cityCountInput.value);
+            
+            if (cityCount > 10) {
+                statusElement.textContent = "暴力搜索仅适用于≤10城";
+                isSolving = false;
+                return;
+            }
+            
+            // 生成所有可能的排列
+            let allPaths = [];
+            const citiesIndices = [...Array(cityCount).keys()];
+            
+            function permute(arr, start) {
+                if (start >= arr.length) {
+                    allPaths.push([...arr]);
+                    return;
+                }
+                
+                for (let i = start; i < arr.length; i++) {
+                    [arr[start], arr[i]] = [arr[i], arr[start]];
+                    permute(arr, start + 1);
+                    [arr[start], arr[i]] = [arr[i], arr[start]];
+                }
+            }
+            
+            permute(citiesIndices, 0);
+            
+            let currentIndex = 0;
+            const speed = parseInt(document.getElementById('animation-speed').value);
+            
+            function step() {
+                if (currentIndex >= allPaths.length || !isSolving) {
+                    const endTime = performance.now();
+                    computeTimeElement.textContent = (endTime - startTime).toFixed(2);
+                    iterationCountElement.textContent = currentIndex;
+                    
+                    if (!isSolving) {
+                        statusElement.textContent = "已停止";
+                    } else {
+                        statusElement.textContent = "求解完成";
+                        isSolving = false;
+                    }
+                    
+                    return;
+                }
+                
+                currentPath = allPaths[currentIndex];
+                const currentDistance = calculateDistance(currentPath);
+                
+                if (currentDistance < bestDistance) {
+                    bestPath = [...currentPath];
+                    bestDistance = currentDistance;
+                }
+                
+                currentIndex++;
+                
+                iterationCountElement.textContent = currentIndex;
+                updateInfo();
+                drawCities();
+                
+                animationId = setTimeout(step, 1000 / speed);
+            }
+            
+            statusElement.textContent = "正在求解...";
+            step();
+        }
+        
+        // 事件监听
+        generateBtn.addEventListener('click', () => {
+            if (isSolving) {
+                cancelAnimationFrame(animationId);
+                clearTimeout(animationId);
+                isSolving = false;
+                statusElement.textContent = "已停止";
+            }
+            generateRandomCities();
+        });
+        
+        solveBtn.addEventListener('click', () => {
+            if (cities.length === 0) {
+                alert("请先生成城市");
+                return;
+            }
+            
+            if (isSolving) {
+                return;
+            }
+            
+            isSolving = true;
+            
+            switch(algorithmSelect.value) {
+                case 'genetic':
+                    geneticAlgorithm();
+                    break;
+                case 'simulated':
+                    simulatedAnnealing();
+                    break;
+                case 'bruteforce':
+                    bruteForce();
+                    break;
+                default:
+                    nearestNeighbor();
+            }
+        });
+        
+        resetBtn.addEventListener('click', () => {
+            if (isSolving) {
+                cancelAnimationFrame(animationId);
+                clearTimeout(animationId);
+                isSolving = false;
+            }
+            
+            cities = [];
+            currentPath = [];
+            bestPath = [];
+            bestDistance = Infinity;
+            
+            statusElement.textContent = "已重置";
+            iterationCountElement.textContent = "0";
+            computeTimeElement.textContent = "0";
+            pathLengthElement.textContent = "-";
+            bestPathLengthElement.textContent = "-";
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+        
+        // 初始化
+        generateRandomCities();
+    </script>
+</body>
+</html>
